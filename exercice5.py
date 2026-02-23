@@ -25,10 +25,7 @@ Règles générales :
 - Un mot-clé peut apparaître plusieurs fois : chaque occurrence compte
 - Le score final est borné entre 0 et 10
 """
-
-# -------------------------------------------------------------
-# 1) Analyser un rapport
-# -------------------------------------------------------------
+ 
 
 def analyser_rapport(texte, mots_cles):
     """
@@ -52,20 +49,29 @@ def analyser_rapport(texte, mots_cles):
     score = 5
     mots_trouves = []
 
-    # TODO 1 : normaliser texte (minuscules)
-    # TODO 2 : découper en mots. Attention aussi à enlever la ponctuation basique aux extrémités (utiliser la fonction strip())S.
-    # TODO 3 : pour chaque mot-clé :
-    #    - mettre à jour le score
-    #    - si occurrences > 0 : ajouter le mot à mots_trouves (sans doublons)
-    # TODO 4 : borner score entre 0 et 10 (min/max)
-    # TODO 5 : retourner (score, mots_trouves)
 
+    texte = texte.lower()
+
+    mots = texte.split()
+    for i in range(len(mots)):
+        mots[i] = mots[i].strip(".,;:!?()[]{}\"'")
+    for mot_cle, score_mot in mots_cles.items():
+        occurrences = 0
+        for m in mots:
+            if m == mot_cle:
+                occurrences += 1
+
+        score += occurrences * score_mot
+
+        if occurrences > 0 and mot_cle not in mots_trouves:
+            mots_trouves.append(mot_cle)
+
+    score = max(0, min(10, score))
     return score, mots_trouves
 
 
-# -------------------------------------------------------------
-# 2) Catégoriser une liste de rapports
-# -------------------------------------------------------------
+
+
 
 def categoriser_rapports(rapports, mots_cles):
     """
@@ -88,17 +94,22 @@ def categoriser_rapports(rapports, mots_cles):
     """
     categories = {'positifs': [], 'neutres': [], 'negatifs': []}
 
-    # TODO :
-    # Pour chaque texte :
-    #   - faire une analyse du rapport pour en tirer le score
-    #   - mettre à jour "categories"
+   
+    categories = {'positifs': [], 'neutres': [], 'negatifs': []}
+
+    for texte in rapports:
+        score, _ = analyser_rapport(texte, mots_cles)
+
+        if score >= 7:
+            categories['positifs'].append((texte, score))
+        elif 4 <= score <= 6:
+            categories['neutres'].append((texte, score))
+        else:  
+            categories['negatifs'].append((texte, score))
 
     return categories
+ 
 
-
-# -------------------------------------------------------------
-# 3) Identifier les problèmes récurrents dans les rapports négatifs
-# -------------------------------------------------------------
 
 def identifier_problemes(rapports_negatifs, mots_cles_negatifs):
     """
@@ -112,20 +123,22 @@ def identifier_problemes(rapports_negatifs, mots_cles_negatifs):
         dict: {mot_negatif: nombre_occurrences_total}
     """
     problemes = {}
+    for mot_negatif in mots_cles_negatifs:
+        problemes[mot_negatif] = 0
 
-    # TODO 1 : initialiser problemes avec 0 pour chaque mot négatif
-    # TODO 2 : parcourir les rapports négatifs :
-    #   - si l’élément est un tuple, récupérer texte = element[0]
-    #   - analyser le texte (minuscules + split)
-    #   - compter les occurrences de chaque mot_negatif
-    #   - incrémenter problemes[mot]
+    for element in rapports_negatifs:
+        texte = element[0] if isinstance(element, tuple) else element
+
+        texte = texte.lower()
+        mots = texte.split()
+        for i in range(len(mots)):
+            mots[i] = mots[i].strip(".,;:!?()[]{}\"'")
+
+        for m in mots:
+            if m in problemes:
+                problemes[m] += 1
 
     return problemes
-
-
-# -------------------------------------------------------------
-# 4) Générer un rapport global
-# -------------------------------------------------------------
 
 def generer_rapport_global(categories, problemes):
     """
@@ -151,15 +164,53 @@ def generer_rapport_global(categories, problemes):
         'top_problemes': []
     }
 
-    # TODO 1 : récupérer tous les scores et calculer la moyenne (gérer le cas avec 0 rapports)
-    # TODO 2 : trouver les 3 problèmes les plus fréquents sans utiliser sorted(), un tri simple type “sélection des max” est suffisant.)
+
+    categories = {'positifs': [], 'neutres': [], 'negatifs': []}
+ 
+    total_scores = 0
+    nb_scores = 0
+
+    for texte, s in categories['positifs']:
+        total_scores += s
+        nb_scores += 1
+    for texte, s in categories['neutres']:
+        total_scores += s
+        nb_scores += 1
+    for texte, s in categories['negatifs']:
+        total_scores += s
+        nb_scores += 1
+
+    if nb_scores == 0:
+        rapport['score_moyen'] = 0.0
+    else:
+        rapport['score_moyen'] = total_scores / nb_scores
+
+
+    problemes_copie = {}
+    for mot, nb in problemes.items():
+        problemes_copie[mot] = nb
+
+    top = []
+    for _ in range(3):
+        meilleur_mot = None
+        meilleur_nb = None
+
+        for mot, nb in problemes_copie.items():
+            if meilleur_mot is None or nb > meilleur_nb:
+                meilleur_mot = mot
+                meilleur_nb = nb
+
+        if meilleur_mot is None:
+            break
+
+        top.append(meilleur_mot)
+        del problemes_copie[meilleur_mot]
+
+    rapport['top_problemes'] = top
 
     return rapport
 
-
-# -------------------------------------------------------------
-# 5) Calculer une tendance à partir d’un historique
-# -------------------------------------------------------------
+   
 
 def calculer_tendance(historique_scores):
     """
@@ -180,12 +231,24 @@ def calculer_tendance(historique_scores):
     Returns:
         str: 'amelioration' | 'degradation' | 'stable'
     """
+    n = len(historique_scores)
+    if n <= 1:
+        return 'stable'
 
-    # TODO :
-    # - Gérer les cas vides / 1 élément
-    # - Couper en deux moitiés
-    # - Comparer les moyennes
+    mid = n // 2
 
+    somme1 = sum(historique_scores[:mid])
+    somme2 = sum(historique_scores[mid:])
+
+    moy1 = somme1 / mid
+    moy2 = somme2 / (n - mid)
+
+    if moy2 > moy1:
+        return 'amelioration'
+    elif moy2 < moy1:
+        return 'degradation'
+    return 'stable'
+  
 
 # -------------------------------------------------------------
 # TESTS main

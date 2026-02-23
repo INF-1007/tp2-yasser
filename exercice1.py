@@ -16,12 +16,9 @@ modules = {
 }
 """
 
-# -------------------------------------------------------------------
-# 1) Analyse des modules
-# -------------------------------------------------------------------
-
 
 def analyser_modules(modules):
+
     """
     Analyse les modules de la station.
 
@@ -38,26 +35,40 @@ def analyser_modules(modules):
     stats = {
         'module_plus_critique': None,
         'cout_moyen': 0,
-        'temps_moyen': 0
-    }
+        'temps_moyen': 0 }
+    
+    if len(modules)==0:
+        return stats
+  
 
-    # TODO 1 : Gérer le cas où le dictionnaire est vide
-    # Dans ce cas, retourner stats tel quel
+    meilleur_ratio=-1
+    meilleur_module=None
+    for nom_module,(cout,temps,criticite) in modules.items():
+        if temps==0:
+            continue
+        ratio=criticite/temps
+        if ratio > meilleur_ratio:
+         meilleur_ratio=ratio
+         meilleur_module=nom_module
+    return(meilleur_module)
 
-    # TODO 2 : Parcourir les modules
-    # - Identifier le module ayant le meilleur ratio criticite / temps_intervention
-    #   ⚠️ Ignorer les modules avec temps_intervention == 0
-    #   ⚠️ En cas d’égalité, conserver le premier module rencontré
+modules = {
+    'Laboratoire': (120,15,8),
+    'Habitat': (200,10,9),
+    'Observatoire': (150,20,6)
+}
 
-    # TODO 3 : Calculer les moyennes
-    # - cout_moyen = somme_couts / nombre_modules
-    # - temps_moyen = somme_temps / nombre_modules
+print(analyser_modules(modules))
 
-    return stats
 
-# -------------------------------------------------------------------
-# 2) Regroupement des modules par type
-# -------------------------------------------------------------------
+somme_couts=sum(v[0] for v in modules.values())
+cout_moyen = somme_couts/len(modules)
+
+somme_temps=sum(v[1] for v  in modules.values())
+temps_moyen=somme_temps/len(modules)
+
+print(cout_moyen,temps_moyen)
+
 
 
 def regrouper_modules_par_type(modules, types):
@@ -74,18 +85,16 @@ def regrouper_modules_par_type(modules, types):
 
     modules_par_type = {}
 
-    # TODO :
-    # Pour chaque module :
-    #   - Vérifier s’il existe dans le dictionnaire types
-    #   - Ajouter le module dans la liste correspondant à son type
-    #   - Créer la liste si elle n’existe pas encore
-    # ⚠️ Ignorer silencieusement les modules sans type
+
+    for nom_module in modules:
+        if nom_module not in types or types[nom_module] is None:
+            continue
+        t=types[nom_module]
+        if t not in modules_par_type:
+         modules_par_type[t]=[]
+        modules_par_type[t].append(nom_module)
 
     return modules_par_type
-
-# -------------------------------------------------------------------
-# 3) Calcul du cout total
-# -------------------------------------------------------------------
 
 
 def calculer_cout_total(modules, interventions):
@@ -101,12 +110,11 @@ def calculer_cout_total(modules, interventions):
     """
 
     cout_total = 0.0
-
-    # TODO :
-    # Pour chaque module dans interventions :
-    #   - Vérifier qu’il existe dans modules
-    #   - Ajouter à cout_total le cout total de maintenance du module étant donné le nombre d'interventions
-    # ⚠️ Ignorer les modules absents de modules
+    for nom_module in interventions:
+       if nom_module not in modules or modules[nom_module] is None:
+          continue
+       nombre_interventions=interventions[nom_module]
+       cout_total+=modules[nom_module][0]* nombre_interventions
 
     return cout_total
 

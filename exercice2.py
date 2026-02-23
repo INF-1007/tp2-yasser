@@ -21,9 +21,7 @@ Structure d'une intervention (dict) :
 - Utiliser False par défaut pour critique
 """
 
-# -------------------------------------------------------------------
-# 1) Calcul de priorité
-# -------------------------------------------------------------------
+
 
 def calculer_priorite(intervention):
     """
@@ -43,11 +41,14 @@ def calculer_priorite(intervention):
         int: score de priorité
     """
     score = 0
+    "urgence"==intervention.get("urgence", 0)
+    "duree" ==intervention.get("duree", 0)
+    "critique" == intervention.get("critique", False)
+    critique=int(intervention["critique"])
+    score=intervention["urgence"]*2+ critique *10 + intervention["duree"]
 
-    # TODO 1 : Récupérer urgence, duree, critique avec .get()
 
-    # TODO 2 : Calculer le score selon la formule
-    #          Penser à convertir critique en 1/0 
+
 
     return score
 
@@ -75,19 +76,30 @@ def trier_interventions(liste_interventions):
         list: nouvelle liste triée (idéalement, ne pas modifier l'original)
     """
 
-    # TODO 1 : Créer une copie de la liste pour éviter les effets de bord
-    #          Indice : interventions = liste_interventions[:]
+    interventions = liste_interventions[:]
+def trier_interventions(liste_interventions):
 
-    # TODO 2 : Implémenter un tri stable décroissant
-    # Astuce stabilité :
-    # - si score_i == score_j, NE PAS échanger
+    interventions = liste_interventions[:]
+ 
+    n = len(interventions)
+    for i in range(n - 1):
+        echange = False
+        for j in range(0, n - 1 - i):
+            score_j = calculer_priorite(interventions[j])
+            score_next = calculer_priorite(interventions[j + 1])
+            if score_j < score_next:
+                interventions[j], interventions[j + 1] = interventions[j + 1], interventions[j]
+                echange = True
+
+        if not echange:
+            break
 
     return interventions
+    
 
 
-# -------------------------------------------------------------------
-# 3) Estimation du temps
-# -------------------------------------------------------------------
+
+
 
 def estimer_temps_interventions(liste_triee):
     """
@@ -109,16 +121,21 @@ def estimer_temps_interventions(liste_triee):
         'temps_total': 0,
         'temps_moyen': 0
     }
+def trier_interventions(liste_triee):
+    result = 0
+    temps_stats = {}
 
-    # TODO 1 : Calculer le temps total
-    # TODO 2 : Calculer le temps moyen (0 si liste vide)
+    for single_interv in liste_triee:
+     result += single_interv.get("duree", 0) * 4
 
+    temps_stats["temps_total"] = result
+
+    if len(liste_triee) == 0:
+     temps_stats["temps_moyen"] = 0
+    else:
+     temps_stats["temps_moyen"] = result / len(liste_triee)
     return temps_stats
 
-
-# -------------------------------------------------------------------
-# 4) Interventions urgentes
-# -------------------------------------------------------------------
 
 def identifier_interventions_urgentes(liste, seuil=30):
     """
@@ -136,39 +153,36 @@ def identifier_interventions_urgentes(liste, seuil=30):
         list: liste des identifiants 'id' urgents
     """
     urgentes = []
-
-    # TODO :
-    # Parcourir la liste
-    #   - si urgence > seuil, ajouter l'id.
-    # ⚠️ Si 'id' manquant, tu peux ignorer l'intervention ou ajouter None
-    # (au choix, mais rester cohérent)
-
+    for elem in liste:
+     if elem["urgence"]>seuil:
+        urgentes.append((list(elem.items()))[0])
+     if (list(elem.keys()))[0] not in elem:
+      continue
     return urgentes
-
 # -------------------------------------------------------------------
 # TESTS main
 # -------------------------------------------------------------------
 
 
 if __name__ == "__main__":
-    interventions_test = [
-        {'id': 1, 'urgence': 10, 'duree': 3, 'critique': False},
+   interventions_test = [
+         {'id': 1, 'urgence': 10, 'duree': 3, 'critique': False},
         {'id': 2, 'urgence': 25, 'duree': 2, 'critique': True},
-        {'id': 3, 'urgence': 5,  'duree': 5, 'critique': False},
-        {'id': 4, 'urgence': 35, 'duree': 1, 'critique': False},
-        {'id': 5, 'urgence': 15, 'duree': 4, 'critique': True},
-    ]
+      {'id': 3, 'urgence': 5,  'duree': 5, 'critique': False},
+         {'id': 4, 'urgence': 35, 'duree': 1, 'critique': False},
+       {'id': 5, 'urgence': 15, 'duree': 4, 'critique': True},
+   ]
 
-    print("Priorités :")
-    for itv in interventions_test:
-        print(itv['id'], calculer_priorite(itv))
+print("Priorités :")
+for itv in interventions_test:
+       print(itv['id'], calculer_priorite(itv))
 
-    tri = trier_interventions(interventions_test)
-    print("\nTri (ids) :", [x.get('id') for x in tri])
+tri = trier_interventions(interventions_test)
+print("\nTri (ids) :", [x.get('id') for x in tri])
 
-    temps = estimer_temps_interventions(tri)
-    print("\nTemps :", temps)
+temps = estimer_temps_interventions(tri)
+print("\nTemps :", temps)
 
-    urg = identifier_interventions_urgentes(interventions_test, seuil=30)
-    print("\nUrgentes :", urg)
+urg = identifier_interventions_urgentes(interventions_test, seuil=30)
+print("\nUrgentes :", urg)
 

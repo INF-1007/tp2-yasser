@@ -19,26 +19,21 @@ Structure des données
         'Hydroponie': {'eau': 20, 'energie': 10}
     }
 
+
+
 ⚠️ Rappels / Contraintes importantes :
 - Si une ressource est absente de l'inventaire des ressources, sa quantité est considérée comme 0.
 - Vous devez éviter les KeyError en utilisant dict.get().
 - Ne modifiez pas directement les dictionnaires si la fonction demande une copie.
 """
 
-# Coûts unitaires (utilisés pour optimiser le réapprovisionnement)
 COUTS_UNITAIRES = {
     'oxygene': 2.5,
     'eau': 0.5,
     'energie': 1.2,
     'nourriture': 3.0
 }
-
-# -------------------------------------------------------------------
-# 1) Vérifier la disponibilité des ressources
-# -------------------------------------------------------------------
-
-def verifier_ressources(ressources, besoin):
-    """
+"""
     Vérifie si les ressources disponibles suffisent pour couvrir un besoin.
 
     Args:
@@ -50,21 +45,17 @@ def verifier_ressources(ressources, besoin):
             - peut_faire = True si toutes les ressources sont suffisantes
             - manquantes = liste des ressources insuffisantes (noms)
     """
+
+def verifier_ressources(ressources, besoin):
     peut_faire = True
     manquantes = []
 
-    # TODO :
-    # Pour chaque ressource requise dans besoin :
-    #   - si stock actuel < quantite requise :
-    #         peut_faire = False
-    #         mettre à jour la liste "manquantes"
-
+    for nom, quantite_dem in besoin.items():
+        stock_actuel = ressources.get(nom, 0)
+        if stock_actuel < quantite_dem:
+            peut_faire = False
+            manquantes.append(nom)
     return peut_faire, manquantes
-
-
-# -------------------------------------------------------------------
-# 2) Mettre à jour les ressources après consommation
-# -------------------------------------------------------------------
 
 def mettre_a_jour_ressources(ressources, besoin, cycles=1):
     """
@@ -82,25 +73,21 @@ def mettre_a_jour_ressources(ressources, besoin, cycles=1):
         dict: nouveau dictionnaire de ressources (copie)
     """
     nouvelles = ressources.copy()
-
-    # TODO :
-    # Pour chaque ressource nécessaire :
-    #   - calculer la consommation
-    #   - mettre à jour le dictionnaire "nouvelles"
-    # (On suppose que les données fournies sont cohérentes; pas besoin de borner à 0)
-
+    consommes=0
+    for nom, quantite_dem in besoin.items():
+        consommes=quantite_dem*cycles
+        nouvelles[nom]=nouvelles.get(nom,0)- consommes
     return nouvelles
 
 
-# -------------------------------------------------------------------
-# 3) Générer des alertes sous un seuil
-# -------------------------------------------------------------------
+
 
 def generer_alertes_ressources(ressources, seuil=50):
     """
     Identifie les ressources dont le stock est inférieur au seuil.
 
-    Pour chaque ressource en alerte, on suggère une quantité standard à commander
+    Pour chaque ressource en alerte, on suggère une quantité standard
+      à commander
     pour revenir à un niveau cible.
 
     Règle de suggestion :
@@ -116,19 +103,13 @@ def generer_alertes_ressources(ressources, seuil=50):
     """
     alertes = {}
     niveau_cible = 200
-
-    # TODO :
-    # Pour chaque ressource du stock :
-    #   - si stock < seuil :
-    #         calculer a_commander
-    #         mettre à jour alertes
-
+    a_commander=0
+    for nom, stock_actuel in ressources.items():
+        if stock_actuel<seuil:
+         a_commander=niveau_cible-stock_actuel
+        alertes[nom]=(stock_actuel,a_commander)
     return alertes
 
-
-# -------------------------------------------------------------------
-# 4) Calculer combien de cycles sont possibles par activité
-# -------------------------------------------------------------------
 
 def calculer_cycles_possibles(ressources, consommations):
     """
@@ -147,21 +128,18 @@ def calculer_cycles_possibles(ressources, consommations):
     """
     possibles = {}
 
-    # TODO :
-    # Pour chaque activité :
-    #   - pour chaque ressource requise :
-    #       si conso > 0 :
-    #           calculer nb_cycles en fonction du stock et de la conso
-    #   - une ressource est considérée valide si conso > 0
-    #   - si aucune ressource valide (toutes conso==0), décider nb_cycles=0 
-    #   - mettre à jour "possibles"
+    for activite, ressources_conso in consommations.items():
+        min_cycles = float("inf")
+
+        for ressource, conso in ressources_conso.items():
+             if conso > 0:
+              cycles = ressources.get(ressource, 0) / conso
+              min_cycles = min(min_cycles, cycles)
+       
+        possibles[activite] = min_cycles
 
     return possibles
 
-
-# -------------------------------------------------------------------
-# 5) Optimiser le réapprovisionnement sous contrainte de budget
-# -------------------------------------------------------------------
 
 def optimiser_reapprovisionnement(ressources, besoins_prevus, budget):
     """
@@ -187,30 +165,70 @@ Paramètres :
 Returns:
     dict: {ressource: quantite_a_acheter}
     """
+    
     achats = {}
 
-    # TODO 1 : Calculer les manques dans un dict manques = {}
-    # TODO 2 : Trier les manques par ordre décroissant (utiliser la fonction sorted())
-    # TODO 3 : Parcourir les ressources par priorité :
-    #          - calculer la quantite max achetable
-    #          - acheter la quantite requise et soustraire du budget
+    manques = {}
+    for nom, besoin in besoins_prevus.items():
+        if nom not in ressources:
+            continue
+
+        info = ressources[nom]
+        if isinstance(info, dict):
+            stock = info.get("stock", 0)
+            cout = info.get("cout", 0)
+        else:  
+            stock = info[0]
+            cout = info[1]
+
+        manque = besoin - stock
+        if manque > 0:
+            manques[nom] = manque
+
+
+    priorites = sorted(manques.items(), key=lambda x: x[1], reverse=True)
+
+
+
+    for nom, manque in priorites:
+        info = ressources[nom]
+
+        if isinstance(info, dict):
+            cout = info.get("cout", 0)
+        else:
+            cout = info[1]
+
+        if cout <= 0:
+            continue
+        if budget <= 0:
+            break
+
+        qte_max = int(budget // cout)       
+        qte_achetee = min(manque, qte_max)  
+
+        if qte_achetee > 0:
+            achats[nom] = qte_achetee
+            budget -= qte_achetee * cout
+
+
+
 
     return achats
 
 
 if __name__ == "__main__":
-    ressources_test = {'oxygene': 120, 'eau': 300, 'energie': 500}
-    besoin_cycle = {'oxygene': 5, 'eau': 12}
+  ressources_test = {'oxygene': 120, 'eau': 300, 'energie': 500}
+  besoin_cycle = {'oxygene': 5, 'eau': 12}
 
-    print("Vérif :", verifier_ressources(ressources_test, besoin_cycle))
-    print("Après 3 cycles :", mettre_a_jour_ressources(ressources_test, besoin_cycle, cycles=3))
-    print("Alertes :", generer_alertes_ressources({'oxygene': 40, 'eau': 120}, seuil=50))
+print("Vérif :", verifier_ressources(ressources_test, besoin_cycle))
+print("Après 3 cycles :", mettre_a_jour_ressources(ressources_test, besoin_cycle, cycles=3))
+print("Alertes :", generer_alertes_ressources({'oxygene': 40, 'eau': 120}, seuil=50))
 
-    consommations_test = {
+consommations_test = {
         'EVA': {'oxygene': 8, 'energie': 15},
         'Hydroponie': {'eau': 20, 'energie': 10}
     }
-    print("Cycles possibles :", calculer_cycles_possibles(ressources_test, consommations_test))
+print("Cycles possibles :", calculer_cycles_possibles(ressources_test, consommations_test))
 
-    besoins_prevus = {'oxygene': 300, 'eau': 500, 'energie': 650}
-    print("Achats :", optimiser_reapprovisionnement(ressources_test, besoins_prevus, budget=200))
+besoins_prevus = {'oxygene': 300, 'eau': 500, 'energie': 650}
+print("Achats :", optimiser_reapprovisionnement(ressources_test, besoins_prevus, budget=200))
